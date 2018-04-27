@@ -16,8 +16,10 @@ import com.facebook.AccessToken;
 import com.facebook.CallbackManager;
 import com.facebook.FacebookCallback;
 import com.facebook.FacebookException;
+import com.facebook.FacebookSdk;
 import com.facebook.GraphRequest;
 import com.facebook.GraphResponse;
+import com.facebook.login.LoginManager;
 import com.facebook.login.LoginResult;
 import com.facebook.login.widget.LoginButton;
 import com.squareup.picasso.Picasso;
@@ -34,53 +36,41 @@ import java.util.Arrays;
 public class MainActivity extends AppCompatActivity {
 
     CallbackManager callbackManager;
+    LoginButton loginButton;
 
     TextView tvEmail, tvBirth;
     ProgressDialog dialog;
     ImageView iv;
 
     @Override
-    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
-        super.onActivityResult(requestCode, resultCode, data);
-        callbackManager.onActivityResult(requestCode, resultCode, data);
-    }
-
-    @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        FacebookSdk.sdkInitialize(getApplicationContext());
         setContentView(R.layout.activity_main);
 
+        initControls();
+        loginWithFb();
+
+        loginButton = findViewById(R.id.login_button);
+        loginButton.setReadPermissions(Arrays.asList("public_profile", "email", "user_birthday"));
+
+
+    }
+
+    private void initControls(){
         callbackManager = CallbackManager.Factory.create();
 
         tvEmail = findViewById(R.id.tv_email);
         tvBirth = findViewById(R.id.tv_birthday);
 
         iv = findViewById(R.id.iv);
+    }
 
-        LoginButton loginButton = findViewById(R.id.login_button);
-        loginButton.setReadPermissions(Arrays.asList("public_profile", "email", "user_birthday"));
-
-        loginButton.registerCallback(callbackManager, new FacebookCallback<LoginResult>() {
+    private void loginWithFb(){
+        LoginManager.getInstance().registerCallback(callbackManager, new FacebookCallback<LoginResult>() {
             @Override
             public void onSuccess(LoginResult loginResult) {
-                dialog = new ProgressDialog(MainActivity.this);
-                dialog.setMessage("Retrieving data...");
-                dialog.show();
 
-                String accesstoken = loginResult.getAccessToken().getToken();
-
-                GraphRequest request = GraphRequest.newMeRequest(loginResult.getAccessToken(), new GraphRequest.GraphJSONObjectCallback() {
-                    @Override
-                    public void onCompleted(JSONObject object, GraphResponse response) {
-                        dialog.dismiss();
-                        Log.d("response", response.toString());
-                        getData(object);
-                    }
-                });
-
-                //Request Graph API
-//                Bundle parameters = new Bundle();
-//                parameters.putString("");
             }
 
             @Override
@@ -93,43 +83,11 @@ public class MainActivity extends AppCompatActivity {
 
             }
         });
-
-        //이미 로그인이 되어있다면...
-        if(AccessToken.getCurrentAccessToken() != null){
-            //Just set User Id
-            tvEmail.setText(AccessToken.getCurrentAccessToken().getUserId());
-        }
     }
 
-    private void getData(JSONObject object) {
-        try {
-            URL profilePic = new URL("https://graph.facebook.com/"+object.getString("id")+"/picture?width=250&height=250");
-
-            Picasso.with(this).load(profilePic.toString()).into(iv);
-
-            tvEmail.setText(object.getString("email"));
-            tvBirth.setText(object.getString("birthday"));
-
-        } catch (MalformedURLException e) {
-            e.printStackTrace();
-        } catch (JSONException e) {
-            e.printStackTrace();
-        }
-    }
-
-    private void printKeyHash(){
-        try {
-            PackageInfo info = getPackageManager().getPackageInfo("com.thy.facebooklogin", PackageManager.GET_SIGNATURES);
-            for (Signature signature : info.signatures){
-                MessageDigest md = MessageDigest.getInstance("SHA");
-                md.update(signature.toByteArray());
-                Log.d("KeyHash", Base64.encodeToString(md.digest(), Base64.DEFAULT));
-            }
-
-        } catch (PackageManager.NameNotFoundException e) {
-            e.printStackTrace();
-        } catch (NoSuchAlgorithmException e) {
-            e.printStackTrace();
-        }
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        callbackManager.onActivityResult(requestCode, resultCode, data);
     }
 }
