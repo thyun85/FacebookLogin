@@ -54,6 +54,13 @@ public class MainActivity extends AppCompatActivity {
         loginButton = findViewById(R.id.login_button);
         loginButton.setReadPermissions(Arrays.asList("public_profile", "email", "user_birthday"));
 
+        if(AccessToken.getCurrentAccessToken() != null){
+            tvEmail.setText(AccessToken.getCurrentAccessToken().getUserId());
+
+            //sendInfo();
+
+        }
+
 
     }
 
@@ -70,12 +77,34 @@ public class MainActivity extends AppCompatActivity {
         LoginManager.getInstance().registerCallback(callbackManager, new FacebookCallback<LoginResult>() {
             @Override
             public void onSuccess(LoginResult loginResult) {
+                dialog = new ProgressDialog(MainActivity.this);
+                dialog.setMessage("Loading...");
+                dialog.show();
 
+                String accesstoken = loginResult.getAccessToken().getToken();
+
+                GraphRequest request = GraphRequest.newMeRequest(loginResult.getAccessToken(), new GraphRequest.GraphJSONObjectCallback() {
+                    @Override
+                    public void onCompleted(JSONObject object, GraphResponse response) {
+                        dialog.dismiss();
+                        Log.d("respose", response.toString());
+                        getData(object);
+                    }
+                });
+
+                //Request Graph API
+                Bundle parameters = new Bundle();
+                parameters.putString("fields", "id, email, birthday");
+                request.setParameters(parameters);
+                request.executeAsync();
+
+//                sendInfo();
             }
 
             @Override
             public void onCancel() {
-
+                setResult(RESULT_CANCELED);
+                finish();
             }
 
             @Override
@@ -84,6 +113,31 @@ public class MainActivity extends AppCompatActivity {
             }
         });
     }
+
+
+    private void getData(JSONObject object) {
+        try {
+            URL profile_picture = new URL("https://graph.facebook.com"+object.getString("id")+"/picture?width=250&height=250");
+
+            Picasso.with(this).load(profile_picture.toString()).into(iv);
+
+            tvEmail.setText(object.getString("email"));
+            tvBirth.setText(object.getString("birthday"));
+
+        } catch (MalformedURLException e) {
+            e.printStackTrace();
+        } catch (JSONException e) {
+            e.printStackTrace();
+        }
+    }
+
+    void sendInfo(){
+        Intent intent = new Intent(MainActivity.this, SecondActivity.class);
+        intent.putExtra("email", tvEmail.getText());
+        intent.putExtra("birthday", tvBirth.getText());
+        startActivity(intent);
+    }
+
 
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
